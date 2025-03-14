@@ -1,0 +1,49 @@
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                git credentialsId: 'node-js-sample.1.0', url: 'https://github.com/GKSwami/node-js-sample.git'
+                echo 'checking the project...'
+            }
+        }
+        stage('build and tag docker file') {
+            steps {
+                script {
+                    def dockerImage = "gkswami/node-js-sample.1.0"
+                    bat "docker build -t ${dockerImage} ."
+                    bat "docker tag ${dockerImage} ${dockerImage}:latest"
+                    echo 'building the docker image'
+                }
+                echo 'build and tag docker in the project...'
+            }
+        }
+        stage('push docker image') { 
+            steps {
+                script {
+                    def dockerImage = "gkswami/node-js-sample.1.0"
+                    bat 'docker login -u gkswami -p Gkiran@123'
+                    bat "docker push ${dockerImage}:latest"
+                }
+                echo 'Pushing the docker image to the docker hub...'
+            }
+        }
+        stage('Deploy to kubernetes') {
+            steps {
+                script {
+                    // Start Minikube
+                    bat 'minikube start'
+                    // Set the Minikube context for kubectl
+                    bat 'minikube kubectl -- config use-context minikube'
+                    // Apply the Kubernetes deployment
+                    bat 'kubectl apply -f k8s/deployment.yaml'
+                    // Apply the network configuration
+                    bat 'kubectl apply -f network-policy.yaml'
+                    // Apply the volume configuration
+                    bat 'kubectl apply -f persistent-volume.yaml'
+                }
+                echo 'Deploying the project...'
+            }
+        }
+    }
+}
